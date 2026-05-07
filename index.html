@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1208">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Stocks Bougies — QG</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --amber: #c8860a; --amber-light: #f5c842; --amber-pale: #fdf3dc; --amber-dark: #7a4f00;
+  --bg: #faf7f2; --bg2: #f2ece0; --card: #ffffff;
+  --text: #1c1410; --text2: #6b5c44; --text3: #a89070;
+  --border: rgba(120,90,40,0.15);
+  --green: #2d6a3f; --green-bg: #eaf5ee;
+  --orange: #b85c00; --orange-bg: #fff1e0;
+  --red: #b02020; --red-bg: #fdeaea;
+  --radius: 14px; --radius-sm: 9px;
+  --shadow: 0 2px 12px rgba(120,80,20,0.10);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+.header { background: var(--text); padding: 18px 16px 14px; position: sticky; top: 0; z-index: 50; }
+.header-top { display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-family: 'DM Serif Display', serif; color: var(--amber-light); font-size: 20px; font-weight: 400; }
+.header p { color: rgba(255,255,255,0.45); font-size: 11px; margin-top: 2px; }
+.header-actions { display: flex; gap: 8px; }
+.hbtn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); border-radius: var(--radius-sm); padding: 7px 12px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+
+.stats-row { display: grid; gap: 8px; padding: 12px 12px 0; }
+.stat-card { background: var(--card); border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; box-shadow: var(--shadow); }
+.stat-val { font-size: 18px; font-weight: 500; color: var(--text); line-height: 1; }
+.stat-val.ok { color: var(--green); }
+.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+.tabs { display: flex; padding: 12px 12px 0; gap: 6px; }
+.tab { flex: 1; text-align: center; padding: 9px 4px; border-radius: var(--radius-sm); font-size: 12px; color: var(--text2); background: transparent; border: 1px solid var(--border); cursor: pointer; }
+.tab.active { background: var(--text); color: var(--amber-light); border-color: var(--text); font-weight: 500; }
+
+.search-bar { padding: 10px 12px 6px; }
+.search-bar input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; }
+
+.filter-pills { display: flex; gap: 6px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: none; }
+.filter-pills::-webkit-scrollbar { display: none; }
+.pill { flex-shrink: 0; padding: 5px 12px; border-radius: 20px; font-size: 12px; border: 1px solid var(--border); color: var(--text2); background: var(--card); cursor: pointer; }
+.pill.active { background: var(--text); color: var(--amber-light); border-color: var(--text); }
+
+.product-list { padding: 0 12px 80px; }
+.product-card { background: var(--card); border-radius: var(--radius); margin-bottom: 8px; box-shadow: var(--shadow); overflow: hidden; border: 1px solid var(--border); }
+.product-main { display: flex; align-items: center; padding: 12px 14px; gap: 10px; }
+.product-info { flex: 1; min-width: 0; }
+.product-nom { font-size: 15px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-ref { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.product-prix { font-size: 14px; font-weight: 500; color: var(--amber-dark); white-space: nowrap; margin-right: 4px; }
+.qty-ctrl { display: flex; align-items: center; background: var(--bg2); border-radius: 30px; padding: 2px; }
+.qty-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: transparent; font-size: 20px; font-weight: 300; color: var(--text2); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.qty-btn.minus:active { background: var(--red-bg); color: var(--red); }
+.qty-btn.plus:active { background: var(--green-bg); color: var(--green); }
+.qty-val { min-width: 32px; text-align: center; font-size: 17px; font-weight: 500; color: var(--text); }
+
+.status-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px 10px; border-top: 1px solid var(--border); }
+.badge { display: inline-block; font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+.badge-ok { background: var(--green-bg); color: var(--green); }
+.badge-crit { background: var(--red-bg); color: var(--red); }
+.edit-link { font-size: 12px; color: var(--text3); cursor: pointer; padding: 4px 0; }
+
+.info-bar { display: flex; border-top: 1px solid var(--border); }
+.info-cell { flex: 1; padding: 7px 10px; text-align: center; border-right: 1px solid var(--border); }
+.info-cell:last-child { border-right: none; }
+.info-cell-lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; }
+.info-cell-val { font-size: 14px; font-weight: 500; color: var(--text); margin-top: 1px; }
+.info-cell-val.sold { color: var(--red); }
+.info-cell-val.value { color: var(--amber-dark); }
+
+.fab { position: fixed; bottom: 20px; right: 16px; width: 56px; height: 56px; border-radius: 50%; background: var(--text); color: var(--amber-light); font-size: 28px; font-weight: 300; border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 40; }
+
+.empty { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 14px; }
+.empty-icon { font-size: 40px; margin-bottom: 8px; }
+
+.hist-list { padding: 0 12px 80px; }
+.hist-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; margin-bottom: 7px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.hist-left { flex: 1; min-width: 0; }
+.hist-nom { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-ref { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.hist-date { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.hist-right { text-align: right; flex-shrink: 0; }
+.hist-delta { font-size: 16px; font-weight: 500; }
+.hist-delta.in { color: var(--green); }
+.hist-delta.out { color: var(--red); }
+.hist-after { font-size: 11px; color: var(--text3); }
+
+.stats-content { padding: 10px 12px 80px; }
+.month-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+.month-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.month-title { font-family: 'DM Serif Display', serif; font-size: 17px; color: var(--text); }
+.month-ca { font-size: 16px; font-weight: 500; color: var(--amber-dark); }
+.month-bar-bg { background: var(--bg2); border-radius: 4px; height: 6px; margin-bottom: 8px; }
+.month-bar { background: var(--amber); border-radius: 4px; height: 6px; }
+.month-sub { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+.month-prod { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--border); }
+.month-prod-nom { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.month-prod-val { color: var(--text); font-weight: 500; margin-left: 8px; flex-shrink: 0; }
+
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--bg); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; padding: 20px 16px 32px; max-height: 85vh; overflow-y: auto; }
+.modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+.modal h2 { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; color: var(--text); margin-bottom: 16px; }
+.modal label { font-size: 12px; font-weight: 500; color: var(--text2); display: block; margin-bottom: 5px; margin-top: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+.modal input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 14px; font-size: 15px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; }
+.modal-footer { display: flex; gap: 10px; margin-top: 20px; }
+.btn-cancel { flex: 1; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 15px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+.btn-save { flex: 2; padding: 14px; border-radius: var(--radius-sm); border: none; background: var(--text); color: var(--amber-light); font-size: 15px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 30px; opacity: 0; transition: all 0.25s; z-index: 200; white-space: nowrap; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.result-content { padding: 10px 12px 80px; }
+.result-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+.result-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.result-month { font-family: 'DM Serif Display', serif; font-size: 17px; color: var(--text); }
+.result-net { font-size: 18px; font-weight: 500; }
+.result-net.pos { color: var(--green); }
+.result-net.neg { color: var(--red); }
+.result-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-top: 1px solid var(--border); }
+.result-row-lbl { color: var(--text2); }
+.result-row-val { font-weight: 500; color: var(--text); }
+.result-row-val.minus { color: var(--red); }
+.result-row-val.urssaf { color: var(--orange); }
+.result-row.total-line { background: var(--bg2); margin: 4px -14px -14px; padding: 8px 14px; border-radius: 0 0 var(--radius) var(--radius); border-top: 1.5px solid var(--border); }
+.result-row.total-line .result-row-lbl { font-weight: 500; color: var(--text); }
+.result-info { font-size: 11px; color: var(--text3); margin: 6px 0 2px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>Bougies Paula</h1>
+      <p>Quimper La Galerie</p>
+    </div>
+    <div class="header-actions">
+      <button class="hbtn" onclick="document.getElementById('xlsxInput').click()">↑ Import catalogue</button>
+      <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+      <button class="hbtn" onclick="exportXLSX()">↓ Excel</button>
+    </div>
+  </div>
+</div>
+
+<div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat-card"><div class="stat-val ok" id="s-vendu-nb">0</div><div class="stat-lbl">Art. vendus</div></div>
+  <div class="stat-card"><div class="stat-val ok" id="s-ca">0€</div><div class="stat-lbl">CA total</div></div>
+  <div class="stat-card"><div class="stat-val" id="s-valeur">0€</div><div class="stat-lbl">Valeur stock</div></div>
+</div>
+<div class="stats-row" style="grid-template-columns:repeat(3,1fr);padding-top:8px">
+  <div class="stat-card"><div class="stat-val ok" id="s-ca-mois">0€</div><div class="stat-lbl" id="s-ca-mois-lbl">CA ce mois</div></div>
+  <div class="stat-card"><div class="stat-val" id="s-ca-prev">0€</div><div class="stat-lbl" id="s-ca-prev-lbl">CA mois préc.</div></div>
+  <div class="stat-card"><div class="stat-val" id="s-qty-total">0</div><div class="stat-lbl">Produits en stock</div></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('stock')">📦 Stocks</div>
+  <div class="tab" onclick="switchTab('stats')">📊 Stats</div>
+  <div class="tab" onclick="switchTab('result')">💰 Résultat</div>
+  <div class="tab" onclick="switchTab('history')">📋 Historique</div>
+</div>
+
+<div id="tab-stock">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Rechercher un produit..." oninput="renderList()" autocomplete="off">
+  </div>
+  <div class="filter-pills">
+    <div class="pill active" onclick="setFilter(this,'')">Tous</div>
+    <div class="pill" onclick="setFilter(this,'ok')">En stock</div>
+    <div class="pill" onclick="setFilter(this,'crit')">Ruptures</div>
+  </div>
+  <div class="product-list" id="productList"></div>
+  <div class="empty" id="emptyMsg" style="display:none">
+    <div class="empty-icon">🕯️</div>Aucun produit trouvé
+  </div>
+</div>
+
+<div id="tab-stats" style="display:none">
+  <div class="stats-content" id="statsContent"></div>
+</div>
+
+<div id="tab-history" style="display:none">
+  <div class="hist-list" id="histList"></div>
+  <div class="empty" id="histEmpty" style="display:none">
+    <div class="empty-icon">📋</div>Aucun mouvement enregistré
+  </div>
+</div>
+
+<div id="tab-result" style="display:none">
+  <div class="result-content" id="resultContent"></div>
+</div>
+
+<button class="fab" onclick="openAdd()">+</button>
+
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modalTitle">Ajouter</h2>
+    <label>Code Article</label>
+    <input type="text" id="f-ref" placeholder="QGBGP000" autocomplete="off">
+    <label>Nom</label>
+    <input type="text" id="f-nom" placeholder="Nom du produit" autocomplete="off">
+    <label>Prix (€)</label>
+    <input type="number" id="f-prix" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+    <label>Quantité en stock</label>
+    <input type="number" id="f-qty" placeholder="0" min="0" inputmode="numeric">
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-save" onclick="saveProduct()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="manualCAModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>CA forfaitaire</h2>
+    <label>Mois</label>
+    <input type="month" id="mca-month" style="font-size:15px">
+    <label>Montant (€)</label>
+    <input type="number" id="mca-amount" placeholder="273.00" step="0.01" min="0" inputmode="decimal">
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('manualCAModal').classList.remove('open')">Annuler</button>
+      <button class="btn-save" onclick="saveManualCA()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Catalogue de base ─────────────────────────────────────
+const RAW = [
+  {ref:'QGBGP000',     nom:'DIVERS BGP',                prix:0},
+  {ref:'QGBGP253791',  nom:'Pot beige',                 prix:20},
+  {ref:'QGBGP255152',  nom:'La douce',                  prix:12},
+  {ref:'QGBGP255153',  nom:'La spirale',                prix:14},
+  {ref:'QGBGP255154',  nom:'Coupelle rose',             prix:23},
+  {ref:'QGBGP255155',  nom:'Pot vieux rose',            prix:20},
+  {ref:'QGBGP255156',  nom:'Bougie Fleur',              prix:9},
+  {ref:'QGBGP255163',  nom:'Pot rose',                  prix:20},
+  {ref:'QGBGP255169',  nom:'Pot rouge 1',               prix:20},
+  {ref:'QGBGP255211',  nom:'Ours Teddy',                prix:17},
+  {ref:'QGBGP255212',  nom:'La prestigieuse',           prix:17},
+  {ref:'QGBGP255214',  nom:"L'entremetteuse",           prix:15},
+  {ref:'QGBGP256751',  nom:'Pot rose jaune',            prix:20},
+  {ref:'QGBGP256757',  nom:'Pot terra cotta',           prix:20},
+  {ref:'QGBGP256758',  nom:'Pot parme',                 prix:20},
+  {ref:'QGBGP256779',  nom:'Corbeille',                 prix:30},
+  {ref:'QGBGP256781',  nom:'Coupelle beige',            prix:25},
+  {ref:'QGBGP256782',  nom:'Coupelle jaune',            prix:23},
+  {ref:'QGBGP256783',  nom:'Coupelle verte',            prix:25},
+  {ref:'QGBGP256784',  nom:'Coupelle moutarde',         prix:25},
+  {ref:'QGBGP256785',  nom:'Coupelle jaune (2)',        prix:25},
+  {ref:'QGBGP256786',  nom:'Coupelle rose (2)',         prix:25},
+  {ref:'QGBGP256787',  nom:'Coupelle beige 7f',         prix:27},
+  {ref:'QGBGP256788',  nom:'Sac noir vieux rose',       prix:35},
+  {ref:'QGBGP256789',  nom:'Vase rose',                 prix:17},
+  {ref:'QGBGP256790',  nom:'Vase rouge',                prix:17},
+  {ref:'QGBGP256792',  nom:'Vase mauve',                prix:17},
+  {ref:'QGBGP256793',  nom:'Vase terra cotta',          prix:17},
+  {ref:'QGBGP256796',  nom:'Grand pot blanc',           prix:35},
+  {ref:'QGBGP256799',  nom:'Sac noir - rouge et blanc', prix:35},
+  {ref:'QGBGP256806',  nom:'Boite carton rouge et blanc',prix:37},
+  {ref:'QGBGP256809',  nom:'Boite florale',             prix:35},
+  {ref:'QGBGP256821',  nom:'Composition vieux rose',    prix:25},
+  {ref:'QGBGP256824',  nom:'Composition vieux rose (2)',prix:28},
+  {ref:'QGBGP256827',  nom:'Composition moutarde',      prix:28},
+  {ref:'QGBGP256829',  nom:'Composition rose',          prix:27},
+  {ref:'QGBGP257994',  nom:'Bougies Delta',             prix:12},
+  {ref:'QGBGP257995',  nom:'Bougie big rose',           prix:14},
+  {ref:'QGBGP257996',  nom:'Bougie Maman ours',         prix:12},
+  {ref:'QGBGP257997',  nom:'Bougie tressée',            prix:12},
+  {ref:'QGBGP257998',  nom:'Bougie coeur',              prix:11},
+  {ref:'QGBGP257999',  nom:'Bougie ondulée',            prix:15},
+  {ref:'QGBGP258276',  nom:'Pot violet',                prix:20},
+  {ref:'QGBGP266330',  nom:'Boite Fleur',               prix:12},
+  {ref:'QGBGP266332',  nom:'Boite cœur',                prix:10},
+  {ref:'QGBGP266349',  nom:'Rose fête des mères',       prix:9.5},
+  {ref:'QGBGP267000',  nom:'Centre de table',           prix:48},
+  {ref:'QGBGP268592',  nom:'Composition verte',         prix:28},
+  {ref:'QGBGP268633',  nom:'Plateau ovale 3 bougies',   prix:20},
+  {ref:'QGBGP268726',  nom:'Plateau carré',             prix:10},
+  {ref:'QGBGP268730',  nom:'Plateau hexagonale',        prix:10},
+  {ref:'QGBGP268731',  nom:'Plateau ovale',             prix:12},
+  {ref:'QGBGP268837',  nom:'Plateau rond',              prix:10},
+  {ref:'QGBGP268884',  nom:'Ourson',                    prix:8},
+];
+
+// ── État global ───────────────────────────────────────────
+const STORAGE_KEY = 'qg_bougies_v2';
+let products = [];
+let history = [];
+let salesHistory = [];
+let editIdx = null;
+let activeFilter = '';
+let manualCA = {}; // {month: montant} ex: {'2026-04': 273}
+
+// ── Utilitaires ───────────────────────────────────────────
+function monthKey(date) {
+  const d = new Date(date);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function fmtMonth(key) {
+  const [y,m] = key.split('-');
+  const noms = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  return noms[parseInt(m)-1] + ' ' + y;
+}
+function fmtVal(v) {
+  return v >= 1000 ? (v/1000).toFixed(1)+'k€' : v.toFixed(0)+'€';
+}
+function sortProds(arr) {
+  return arr.sort((a,b) => a.nom.localeCompare(b.nom,'fr'));
+}
+
+// ── Persistence ───────────────────────────────────────────
+function initProducts() {
+  products = sortProds(RAW.map(p => ({...p, qty:0, sold:0})));
+}
+
+function loadData() {
+  initProducts();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    // Restaurer qty et sold sur les produits existants
+    if (data.stocks) {
+      data.stocks.forEach(s => {
+        const p = products.find(x => x.ref === s.ref);
+        if (p) {
+          p.qty  = Number(s.qty)  || 0;
+          p.sold = Number(s.sold) || 0;
+        } else {
+          // Produit ajouté manuellement
+          products.push({
+            ref: s.ref, nom: s.nom || s.ref,
+            prix: Number(s.prix) || 0,
+            qty:  Number(s.qty)  || 0,
+            sold: Number(s.sold) || 0
+          });
+        }
+      });
+      sortProds(products);
+    }
+    if (data.history)      history      = data.history;
+    if (data.salesHistory) salesHistory = data.salesHistory;
+    if (data.manualCA)     manualCA     = data.manualCA;
+  } catch(e) {
+    console.warn('Erreur chargement données:', e);
+  }
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      stocks: products.map(p => ({
+        ref: p.ref, nom: p.nom, prix: p.prix,
+        qty: p.qty, sold: p.sold || 0
+      })),
+      history:      history.slice(0, 300),
+      salesHistory: salesHistory.slice(0, 3000),
+      manualCA:     manualCA
+    }));
+  } catch(e) {
+    console.warn('Erreur sauvegarde:', e);
+  }
+}
+
+// ── Totaux ────────────────────────────────────────────────
+function updateStats() {
+  const valStock  = products.reduce((s,p) => s + p.qty * p.prix, 0);
+  document.getElementById('s-valeur').textContent = valStock.toFixed(2) + ' €';
+
+  const totalSold = products.reduce((s,p) => s + (p.sold||0), 0);
+  // CA produits + CA forfaitaires
+  const caProduits  = products.reduce((s,p) => s + (p.sold||0) * p.prix, 0);
+  const caForfeits  = Object.values(manualCA).reduce((s,v) => s + v, 0);
+  const caTotal     = caProduits + caForfeits;
+  document.getElementById('s-vendu-nb').textContent = totalSold;
+  document.getElementById('s-ca').textContent = caTotal.toFixed(2) + ' €';
+
+  const qtyTotal = products.reduce((s,p) => s + p.qty, 0);
+  document.getElementById('s-qty-total').textContent = qtyTotal;
+
+  const now     = new Date();
+  const curKey  = monthKey(now);
+  const prevKey = monthKey(new Date(now.getFullYear(), now.getMonth()-1, 1));
+
+  // CA mensuel produits
+  let caMois = 0, caPrev = 0;
+  salesHistory.forEach(s => {
+    if (s.month === curKey)  caMois += s.amount;
+    if (s.month === prevKey) caPrev += s.amount;
+  });
+  // Ajouter les forfaitaires du mois
+  caMois += manualCA[curKey]  || 0;
+  caPrev += manualCA[prevKey] || 0;
+
+  document.getElementById('s-ca-mois').textContent     = caMois.toFixed(2) + ' €';
+  document.getElementById('s-ca-prev').textContent     = caPrev.toFixed(2) + ' €';
+  document.getElementById('s-ca-mois-lbl').textContent = 'CA ' + fmtMonth(curKey);
+  document.getElementById('s-ca-prev-lbl').textContent = fmtMonth(prevKey);
+}
+
+// ── Navigation ────────────────────────────────────────────
+function switchTab(t) {
+  const tabs = ['stock','stats','result','history'];
+  tabs.forEach((tab, i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('active', tab === t);
+    document.getElementById('tab-'+tab).style.display = (tab === t) ? '' : 'none';
+  });
+  if (t === 'history') renderHistory();
+  if (t === 'stats')   renderStats();
+  if (t === 'result')  renderResult();
+}
+
+function setFilter(el, val) {
+  activeFilter = val;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+// ── Liste produits ────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  return products.filter(p => {
+    if (q && !p.ref.toLowerCase().includes(q) && !p.nom.toLowerCase().includes(q)) return false;
+    if (activeFilter === 'crit' && p.qty !== 0)  return false;
+    if (activeFilter === 'ok'   && p.qty === 0)  return false;
+    return true;
+  });
+}
+
+function renderList() {
+  const rows  = getFiltered();
+  const el    = document.getElementById('productList');
+  const empty = document.getElementById('emptyMsg');
+  if (!rows.length) { el.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  el.innerHTML = rows.map(p => {
+    const idx = products.indexOf(p);
+    const bc  = p.qty === 0 ? 'badge-crit' : 'badge-ok';
+    const bt  = p.qty === 0 ? 'Rupture'    : 'Ok';
+    const ca  = ((p.sold||0) * p.prix).toFixed(2);
+    return `<div class="product-card">
+      <div class="product-main">
+        <div class="product-info">
+          <div class="product-nom">${p.nom}</div>
+          <div class="product-ref">${p.ref}</div>
+        </div>
+        <div class="product-prix">${p.prix ? p.prix.toFixed(2)+' €' : '—'}</div>
+        <div class="qty-ctrl">
+          <button class="qty-btn minus" ontouchstart="" onclick="changeQty(${idx},-1)">−</button>
+          <span class="qty-val" id="qty-${idx}">${p.qty}</span>
+          <button class="qty-btn plus"  ontouchstart="" onclick="changeQty(${idx}, 1)">+</button>
+        </div>
+      </div>
+      <div class="status-bar">
+        <span class="badge ${bc}" id="badge-${idx}">${bt}</span>
+        <span class="edit-link" onclick="openEdit(${idx})">Modifier ›</span>
+      </div>
+      <div class="info-bar">
+        <div class="info-cell" style="flex:1.4">
+          <div class="info-cell-lbl">Qté vendue</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:2px">
+            <button class="qty-btn minus" ontouchstart="" onclick="changeSold(${idx},-1)" style="width:28px;height:28px;font-size:17px">−</button>
+            <span class="info-cell-val sold" id="sold-${idx}" style="min-width:22px;text-align:center">${p.sold||0}</span>
+            <button class="qty-btn plus"  ontouchstart="" onclick="changeSold(${idx}, 1)" style="width:28px;height:28px;font-size:17px">+</button>
+          </div>
+        </div>
+        <div class="info-cell" style="flex:1.6">
+          <div class="info-cell-lbl">CA vendu</div>
+          <div class="info-cell-val value" id="ca-${idx}">${ca} €</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Mouvement stock ───────────────────────────────────────
+function changeQty(idx, delta) {
+  const p      = products[idx];
+  const newQty = Math.max(0, p.qty + delta);
+  if (newQty === p.qty) return;
+  const now = new Date();
+  history.unshift({
+    date: now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+    ref: p.ref, nom: p.nom, type: delta > 0 ? 'in' : 'out',
+    qty: Math.abs(delta), after: newQty
+  });
+  p.qty = newQty;
+  const qEl = document.getElementById('qty-'+idx);
+  const bEl = document.getElementById('badge-'+idx);
+  if (qEl) qEl.textContent = newQty;
+  if (bEl) {
+    bEl.className   = 'badge ' + (newQty === 0 ? 'badge-crit' : 'badge-ok');
+    bEl.textContent = newQty === 0 ? 'Rupture' : 'Ok';
+  }
+  updateStats();
+  saveData();
+  showToast(delta > 0 ? `+1 stock — ${p.nom}` : `-1 stock — ${p.nom}`);
+}
+
+// ── Mouvement ventes ──────────────────────────────────────
+function changeSold(idx, delta) {
+  const p       = products[idx];
+  const newSold = Math.max(0, (p.sold||0) + delta);
+  if (newSold === (p.sold||0)) return;
+
+  // Vérifier qu'il reste du stock pour une vente
+  if (delta > 0 && p.qty <= 0) {
+    showToast(`⚠️ Stock épuisé — ${p.nom}`);
+    return;
+  }
+
+  p.sold = newSold;
+
+  // Ajuster le stock : -1 si vente, +1 si annulation
+  const newQty = delta > 0
+    ? Math.max(0, p.qty - 1)
+    : p.qty + 1;
+  p.qty = newQty;
+
+  // Mettre à jour l'affichage du stock
+  const qEl = document.getElementById('qty-'+idx);
+  const bEl = document.getElementById('badge-'+idx);
+  if (qEl) qEl.textContent = newQty;
+  if (bEl) {
+    bEl.className   = 'badge ' + (newQty === 0 ? 'badge-crit' : 'badge-ok');
+    bEl.textContent = newQty === 0 ? 'Rupture' : 'Ok';
+  }
+
+  // Enregistrer dans l'historique mensuel
+  const now = new Date();
+  const mk  = monthKey(now);
+  if (delta > 0) {
+    salesHistory.push({month: mk, ref: p.ref, nom: p.nom, qty: 1, amount: p.prix, date: now.toISOString()});
+    history.unshift({
+      date: now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      ref: p.ref, nom: p.nom, type: 'out', qty: 1, after: newQty
+    });
+  } else {
+    // Annulation : retirer la dernière vente du mois pour ce produit
+    for (let i = salesHistory.length - 1; i >= 0; i--) {
+      if (salesHistory[i].ref === p.ref && salesHistory[i].month === mk) {
+        salesHistory.splice(i, 1); break;
+      }
+    }
+    history.unshift({
+      date: now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      ref: p.ref, nom: p.nom, type: 'in', qty: 1, after: newQty
+    });
+  }
+
+  const sEl = document.getElementById('sold-'+idx);
+  const cEl = document.getElementById('ca-'+idx);
+  if (sEl) sEl.textContent = newSold;
+  if (cEl) cEl.textContent = (newSold * p.prix).toFixed(2) + ' €';
+  updateStats();
+  saveData();
+  showToast(delta > 0 ? `Vente enregistrée — ${p.nom}` : `Vente annulée, stock restauré — ${p.nom}`);
+}
+
+// ── Onglet Stats ──────────────────────────────────────────
+function renderStats() {
+  const el = document.getElementById('statsContent');
+
+  // Regrouper les ventes produit par mois
+  const byMonth = {};
+  salesHistory.forEach(s => {
+    if (!byMonth[s.month]) byMonth[s.month] = {qty:0, amount:0, prods:{}, manual:0};
+    byMonth[s.month].qty    += s.qty;
+    byMonth[s.month].amount += s.amount;
+    if (!byMonth[s.month].prods[s.ref])
+      byMonth[s.month].prods[s.ref] = {nom: s.nom, qty:0, amount:0};
+    byMonth[s.month].prods[s.ref].qty    += s.qty;
+    byMonth[s.month].prods[s.ref].amount += s.amount;
+  });
+
+  // Ajouter les CA manuels
+  Object.keys(manualCA).forEach(m => {
+    if (!byMonth[m]) byMonth[m] = {qty:0, amount:0, prods:{}, manual:0};
+    byMonth[m].manual = manualCA[m];
+    byMonth[m].amount += manualCA[m];
+  });
+
+  const months = Object.keys(byMonth).sort().reverse();
+
+  const btnAjout = `<div style="padding:0 0 12px">
+    <button onclick="openManualCA()" style="width:100%;padding:13px;border-radius:var(--radius-sm);border:1.5px dashed var(--border);background:transparent;color:var(--text2);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer">
+      + Ajouter un CA forfaitaire sur un mois
+    </button>
+  </div>`;
+
+  if (!months.length) {
+    el.innerHTML = btnAjout + `<div class="empty"><div class="empty-icon">📊</div>
+      Aucune vente enregistrée.<br><br>
+      Utilisez les boutons <strong>+</strong> sur "Qté vendue"<br>pour saisir vos ventes.</div>`;
+    return;
+  }
+
+  const maxCA = Math.max(...months.map(m => byMonth[m].amount));
+  el.innerHTML = btnAjout + months.map(m => {
+    const d    = byMonth[m];
+    const barW = maxCA > 0 ? Math.round(d.amount / maxCA * 100) : 0;
+    const top  = Object.values(d.prods).sort((a,b) => b.amount - a.amount).slice(0, 5);
+    const star = top.length ? top[0] : null;
+    const manuelLine = d.manual > 0
+      ? `<div class="month-prod">
+          <span class="month-prod-nom" style="font-style:italic">Ventes forfaitaires</span>
+          <span class="month-prod-val">${d.manual.toFixed(2)} €
+            <span onclick="deleteManualCA('${m}')" style="margin-left:6px;color:var(--red);cursor:pointer;font-size:12px">✕</span>
+          </span>
+         </div>` : '';
+    const starLine = star
+      ? `<div style="display:flex;align-items:center;gap:6px;padding:6px 0 2px;font-size:12px;color:var(--amber-dark);font-weight:500">
+           🏆 Produit star : ${star.nom} — ${star.qty} vente${star.qty>1?'s':''} (${star.amount.toFixed(2)} €)
+         </div>` : '';
+    return `<div class="month-card">
+      <div class="month-header">
+        <span class="month-title">${fmtMonth(m)}</span>
+        <span class="month-ca">${d.amount.toFixed(2)} €</span>
+      </div>
+      <div class="month-bar-bg"><div class="month-bar" style="width:${barW}%"></div></div>
+      <div class="month-sub">${d.qty} article${d.qty>1?'s':''} vendu${d.qty>1?'s':''}</div>
+      ${starLine}
+      ${top.map(p => `
+        <div class="month-prod">
+          <span class="month-prod-nom">${p.nom}</span>
+          <span class="month-prod-val">${p.qty} × ${(p.amount/p.qty).toFixed(0)} € = ${p.amount.toFixed(2)} €</span>
+        </div>`).join('')}
+      ${manuelLine}
+    </div>`;
+  }).join('');
+}
+
+function openManualCA() {
+  // Pré-remplir avec le mois courant
+  const now = new Date();
+  const mk  = monthKey(now);
+  document.getElementById('mca-month').value  = mk;
+  document.getElementById('mca-amount').value = manualCA[mk] || '';
+  document.getElementById('manualCAModal').classList.add('open');
+}
+
+function saveManualCA() {
+  const m   = document.getElementById('mca-month').value;
+  const amt = parseFloat(document.getElementById('mca-amount').value);
+  if (!m || isNaN(amt) || amt <= 0) { showToast('⚠️ Montant invalide'); return; }
+  manualCA[m] = amt;
+  saveData();
+  document.getElementById('manualCAModal').classList.remove('open');
+  renderStats();
+  updateStats();
+  showToast(`CA forfaitaire ${fmtMonth(m)} enregistré`);
+}
+
+function deleteManualCA(m) {
+  if (!confirm(`Supprimer le CA forfaitaire de ${fmtMonth(m)} ?`)) return;
+  delete manualCA[m];
+  saveData();
+  renderStats();
+  updateStats();
+  showToast('CA forfaitaire supprimé');
+}
+
+// ── Onglet Résultat ───────────────────────────────────────
+// Paramètres fixes
+const COMMISSION  = 0.20;   // 20%
+const URSSAF_RATE = 0.123;  // 12,3%
+const LOYER_STD   = 81;     // loyer standard
+const LOYER_AVRIL = 73;     // loyer spécial avril
+
+function getLoyer(monthKey) {
+  // Avril = mois 04
+  return monthKey.endsWith('-04') ? LOYER_AVRIL : LOYER_STD;
+}
+
+function calcResult(ca, mk) {
+  const loyer      = getLoyer(mk);
+  const commission = parseFloat((ca * COMMISSION).toFixed(2));
+  const urssaf     = parseFloat((ca * URSSAF_RATE).toFixed(2));
+  const caApres    = parseFloat((ca - commission - loyer).toFixed(2));
+  const net        = parseFloat((caApres - urssaf).toFixed(2));
+  return { ca, commission, loyer, urssaf, caApres, net };
+}
+
+function renderResult() {
+  const el = document.getElementById('resultContent');
+
+  // Regrouper CA par mois (produits + forfaitaires)
+  const byMonth = {};
+  salesHistory.forEach(s => {
+    if (!byMonth[s.month]) byMonth[s.month] = 0;
+    byMonth[s.month] += s.amount;
+  });
+  Object.keys(manualCA).forEach(m => {
+    if (!byMonth[m]) byMonth[m] = 0;
+    byMonth[m] += manualCA[m];
+  });
+
+  const months = Object.keys(byMonth).sort().reverse();
+
+  if (!months.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">💰</div>
+      Aucune donnée disponible.<br><br>
+      Saisis tes ventes dans l'onglet <strong>📦 Stocks</strong><br>
+      ou ajoute un CA forfaitaire dans <strong>📊 Stats</strong>.</div>`;
+    return;
+  }
+
+  // Regrouper par année civile
+  const byYear = {};
+  months.forEach(m => {
+    const year = m.slice(0,4);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(m);
+  });
+
+  const years = Object.keys(byYear).sort().reverse();
+
+  el.innerHTML = years.map(year => {
+    const monthsOfYear = byYear[year]; // déjà triés desc
+
+    // Cumul annuel
+    let cumCA = 0, cumCommission = 0, cumLoyer = 0, cumUrssaf = 0, cumNet = 0;
+    monthsOfYear.forEach(m => {
+      const r = calcResult(byMonth[m], m);
+      cumCA         += r.ca;
+      cumCommission += r.commission;
+      cumLoyer      += r.loyer;
+      cumUrssaf     += r.urssaf;
+      cumNet        += r.net;
+    });
+    cumCA         = parseFloat(cumCA.toFixed(2));
+    cumCommission = parseFloat(cumCommission.toFixed(2));
+    cumLoyer      = parseFloat(cumLoyer.toFixed(2));
+    cumUrssaf     = parseFloat(cumUrssaf.toFixed(2));
+    cumNet        = parseFloat(cumNet.toFixed(2));
+    const cumNetClass = cumNet >= 0 ? 'pos' : 'neg';
+
+    // Carte cumul annuel
+    const annualCard = `<div class="result-card" style="border:2px solid var(--amber);background:var(--amber-pale);margin-bottom:14px">
+      <div class="result-header">
+        <span class="result-month" style="font-size:19px">📅 Cumul ${year}</span>
+        <span class="result-net ${cumNetClass}" style="font-size:20px">${cumNet.toFixed(2)} €</span>
+      </div>
+      <div class="result-row"><span class="result-row-lbl">CA total ${year}</span><span class="result-row-val">${cumCA.toFixed(2)} €</span></div>
+      <div class="result-row"><span class="result-row-lbl">− Commissions 20%</span><span class="result-row-val minus">− ${cumCommission.toFixed(2)} €</span></div>
+      <div class="result-row"><span class="result-row-lbl">− Loyers</span><span class="result-row-val minus">− ${cumLoyer.toFixed(2)} €</span></div>
+      <div class="result-row"><span class="result-row-lbl">− URSSAF 12,3%</span><span class="result-row-val urssaf">− ${cumUrssaf.toFixed(2)} €</span></div>
+      <div class="result-row total-line" style="background:rgba(200,134,10,0.12)">
+        <span class="result-row-lbl" style="font-weight:600">💶 Reste net annuel</span>
+        <span class="result-net ${cumNetClass}" style="font-size:18px;font-weight:600">${cumNet.toFixed(2)} €</span>
+      </div>
+    </div>`;
+
+    // Cartes mensuelles
+    const monthCards = monthsOfYear.map(m => {
+      const ca = byMonth[m];
+      const r  = calcResult(ca, m);
+      const netClass  = r.net >= 0 ? 'pos' : 'neg';
+      const loyerNote = getLoyer(m) === LOYER_AVRIL ? ' (loyer avril)' : '';
+      return `<div class="result-card">
+        <div class="result-header">
+          <span class="result-month">${fmtMonth(m)}</span>
+          <span class="result-net ${netClass}">${r.net.toFixed(2)} €</span>
+        </div>
+        <div class="result-row"><span class="result-row-lbl">CA du mois</span><span class="result-row-val">${r.ca.toFixed(2)} €</span></div>
+        <div class="result-row"><span class="result-row-lbl">− Commission 20%</span><span class="result-row-val minus">− ${r.commission.toFixed(2)} €</span></div>
+        <div class="result-row"><span class="result-row-lbl">− Loyer boutique${loyerNote}</span><span class="result-row-val minus">− ${r.loyer.toFixed(2)} €</span></div>
+        <div class="result-info">Base avant URSSAF : ${r.caApres.toFixed(2)} €</div>
+        <div class="result-row"><span class="result-row-lbl">− URSSAF 12,3% (sur CA brut)</span><span class="result-row-val urssaf">− ${r.urssaf.toFixed(2)} €</span></div>
+        <div class="result-row total-line">
+          <span class="result-row-lbl">💶 Reste net</span>
+          <span class="result-net ${netClass}" style="font-size:16px">${r.net.toFixed(2)} €</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    return annualCard + monthCards;
+  }).join('<div style="height:8px"></div>');
+}
+function renderHistory() {
+  const el    = document.getElementById('histList');
+  const empty = document.getElementById('histEmpty');
+  if (!history.length) { el.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  el.innerHTML = history.map(h => `
+    <div class="hist-card">
+      <div class="hist-left">
+        <div class="hist-nom">${h.nom}</div>
+        <div class="hist-ref">${h.ref}</div>
+        <div class="hist-date">${h.date}</div>
+      </div>
+      <div class="hist-right">
+        <div class="hist-delta ${h.type}">${h.type==='in'?'+':'-'}${h.qty}</div>
+        <div class="hist-after">→ ${h.after} en stock</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Modal produit ─────────────────────────────────────────
+function openAdd() {
+  editIdx = null;
+  document.getElementById('modalTitle').textContent = 'Ajouter un produit';
+  ['ref','nom','prix','qty'].forEach(f => document.getElementById('f-'+f).value = '');
+  document.getElementById('editModal').classList.add('open');
+}
+function openEdit(i) {
+  editIdx = i;
+  const p = products[i];
+  document.getElementById('modalTitle').textContent = 'Modifier le produit';
+  document.getElementById('f-ref').value  = p.ref;
+  document.getElementById('f-nom').value  = p.nom;
+  document.getElementById('f-prix').value = p.prix;
+  document.getElementById('f-qty').value  = p.qty;
+  document.getElementById('editModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+function saveProduct() {
+  const ref  = document.getElementById('f-ref').value.trim();
+  const nom  = document.getElementById('f-nom').value.trim();
+  const prix = parseFloat(document.getElementById('f-prix').value) || 0;
+  const qty  = parseInt(document.getElementById('f-qty').value)    || 0;
+  if (!ref && !nom) { alert('Référence ou nom requis.'); return; }
+  if (editIdx !== null) {
+    products[editIdx] = {...products[editIdx], ref, nom, prix, qty};
+  } else {
+    products.push({ref, nom, prix, qty, sold:0});
+    sortProds(products);
+  }
+  closeModal();
+  saveData();
+  renderList();
+  updateStats();
+  showToast(editIdx !== null ? 'Produit modifié' : 'Produit ajouté');
+}
+
+// ── Export Excel (.xlsx) ──────────────────────────────────
+function exportXLSX() {
+  const wb = XLSX.utils.book_new();
+
+  // ── Feuille 1 : Stocks produits ──
+  const dataStocks = [
+    ['Code Article','Nom','Prix','Stock','Valeur stock','Qté vendue','CA vendu'],
+    ...products.map(p => {
+      const sold = p.sold || 0;
+      return [p.ref, p.nom, p.prix, p.qty,
+        parseFloat((p.qty * p.prix).toFixed(2)),
+        sold,
+        parseFloat((sold * p.prix).toFixed(2))];
+    })
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(dataStocks);
+  ws1['!cols'] = [{wch:16},{wch:28},{wch:8},{wch:8},{wch:13},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Stocks');
+
+  // ── Feuille 2 : CA par mois ──
+  const byMonth = {};
+  salesHistory.forEach(s => {
+    if (!byMonth[s.month]) byMonth[s.month] = {produits:0, forfait:0, prods:{}};
+    byMonth[s.month].produits += s.amount;
+    if (!byMonth[s.month].prods[s.ref]) byMonth[s.month].prods[s.ref] = {nom:s.nom, qty:0, amount:0};
+    byMonth[s.month].prods[s.ref].qty    += s.qty;
+    byMonth[s.month].prods[s.ref].amount += s.amount;
+  });
+  Object.keys(manualCA).forEach(m => {
+    if (!byMonth[m]) byMonth[m] = {produits:0, forfait:0, prods:{}};
+    byMonth[m].forfait = manualCA[m];
+  });
+  const moisSorted = Object.keys(byMonth).sort();
+  const dataCA = [
+    ['Mois','CA produits','CA forfaitaire','CA total','Produit star','Qté star'],
+    ...moisSorted.map(m => {
+      const d     = byMonth[m];
+      const total = parseFloat((d.produits + d.forfait).toFixed(2));
+      const top   = Object.values(d.prods).sort((a,b)=>b.qty-a.qty)[0];
+      return [fmtMonth(m),
+        parseFloat(d.produits.toFixed(2)),
+        parseFloat((d.forfait||0).toFixed(2)),
+        total,
+        top ? top.nom : '',
+        top ? top.qty : ''];
+    }),
+    ['TOTAL',
+      parseFloat(moisSorted.reduce((s,m)=>s+byMonth[m].produits,0).toFixed(2)),
+      parseFloat(moisSorted.reduce((s,m)=>s+(byMonth[m].forfait||0),0).toFixed(2)),
+      parseFloat(moisSorted.reduce((s,m)=>s+byMonth[m].produits+(byMonth[m].forfait||0),0).toFixed(2)),
+      '', '']
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(dataCA);
+  ws2['!cols'] = [{wch:12},{wch:14},{wch:16},{wch:12},{wch:28},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'CA par mois');
+
+  // ── Feuille 3 : Résultats nets ──
+  const dataResult = [
+    ['Mois','CA','Commission 20%','Loyer','Base avant URSSAF','URSSAF 12.3%','Reste net'],
+    ...moisSorted.map(m => {
+      const ca = parseFloat(((byMonth[m].produits||0) + (byMonth[m].forfait||0)).toFixed(2));
+      const r  = calcResult(ca, m);
+      return [fmtMonth(m), r.ca, r.commission, r.loyer, r.caApres, r.urssaf, r.net];
+    })
+  ];
+  // Totaux annuels
+  const years = [...new Set(moisSorted.map(m=>m.slice(0,4)))];
+  years.forEach(y => {
+    const mY = moisSorted.filter(m=>m.startsWith(y));
+    let tCA=0,tComm=0,tLoyer=0,tBase=0,tUrssaf=0,tNet=0;
+    mY.forEach(m => {
+      const ca = parseFloat(((byMonth[m].produits||0)+(byMonth[m].forfait||0)).toFixed(2));
+      const r  = calcResult(ca,m);
+      tCA+=r.ca; tComm+=r.commission; tLoyer+=r.loyer;
+      tBase+=r.caApres; tUrssaf+=r.urssaf; tNet+=r.net;
+    });
+    dataResult.push(['TOTAL '+y,
+      parseFloat(tCA.toFixed(2)), parseFloat(tComm.toFixed(2)),
+      parseFloat(tLoyer.toFixed(2)), parseFloat(tBase.toFixed(2)),
+      parseFloat(tUrssaf.toFixed(2)), parseFloat(tNet.toFixed(2))]);
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet(dataResult);
+  ws3['!cols'] = [{wch:12},{wch:10},{wch:15},{wch:8},{wch:18},{wch:13},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Résultats nets');
+
+  XLSX.writeFile(wb, 'QG_bougies_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  showToast('Export Excel téléchargé');
+}
+
+// ── Import catalogue Excel ────────────────────────────────
+function importExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const nomFichier = file.name.toLowerCase().split('/').pop().split('\\').pop();
+  if (!nomFichier.startsWith('catalogue')) {
+    if (!confirm(`Le fichier s'appelle "${file.name}".\nIl ne commence pas par "catalogue".\nVoulez-vous l'importer quand même ?`)) {
+      event.target.value = '';
+      return;
+    }
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+
+      // Lire toutes les lignes en tableau brut pour gérer la ligne de titre
+      const allRows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if (!allRows.length) { showToast('⚠️ Fichier vide'); return; }
+
+      // Trouver la ligne d'en-têtes (celle qui contient "Code" ou "Nom")
+      let headerIdx = 0;
+      for (let i = 0; i < Math.min(5, allRows.length); i++) {
+        const rowStr = allRows[i].join('|').toLowerCase();
+        if (rowStr.includes('code') || rowStr.includes('nom article') || rowStr.includes('référence')) {
+          headerIdx = i;
+          break;
+        }
+      }
+
+      const headers = allRows[headerIdx].map(h => String(h).toLowerCase().trim());
+      const findCol = (keys) => {
+        for (const k of keys) {
+          const idx = headers.findIndex(h => h.includes(k.toLowerCase()));
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      };
+
+      const iRef  = findCol(['code article','code art','code','ref','sku','id']);
+      const iNom  = findCol(['nom article','libellé article','libelle article','nom','libellé','libelle','désignation','designation','produit']);
+      const iPrix = findCol(['prix de base','prix unitaire','prix base','prix','price','tarif','pu']);
+
+      if (iRef < 0 && iNom < 0) {
+        showToast(`⚠️ Colonnes: ${headers.slice(0,4).join(', ')}…`);
+        return;
+      }
+
+      let added = 0, updated = 0;
+      // Parcourir les lignes de données (après l'en-tête)
+      for (let i = headerIdx + 1; i < allRows.length; i++) {
+        const row  = allRows[i];
+        const ref  = iRef  >= 0 ? String(row[iRef]  || '').trim() : '';
+        const nom  = iNom  >= 0 ? String(row[iNom]  || '').trim() : '';
+        let   prix = 0;
+        if (iPrix >= 0 && row[iPrix] !== '') {
+          const pv = row[iPrix];
+          prix = typeof pv === 'number' ? pv : parseFloat(String(pv).replace(/[€\s]/g,'').replace(',','.')) || 0;
+        }
+        if (!ref && !nom) continue;
+
+        const existing = products.find(p => p.ref === ref);
+        if (existing) {
+          if (nom)    existing.nom  = nom;
+          if (prix>0) existing.prix = prix;
+          updated++;
+        } else {
+          products.push({ref, nom, prix, qty:0, sold:0});
+          added++;
+        }
+      }
+
+      sortProds(products);
+      saveData();
+      renderList();
+      updateStats();
+      event.target.value = '';
+      showToast(`✓ ${added} ajouté${added>1?'s':''}, ${updated} mis à jour`);
+    } catch(err) {
+      showToast('⚠️ Erreur: ' + err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Reset ─────────────────────────────────────────────────
+function resetData() {
+  if (!confirm('Remettre tous les stocks et ventes à zéro ?\nCette action est irréversible.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  initProducts();
+  history      = [];
+  salesHistory = [];
+  renderList();
+  updateStats();
+  showToast('Données réinitialisées');
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('editModal')) closeModal();
+});
+
+// ── Démarrage ─────────────────────────────────────────────
+loadData();
+renderList();
+updateStats();
+</script>
+</body>
+</html>
