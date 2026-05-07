@@ -147,6 +147,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <button class="hbtn" onclick="document.getElementById('xlsxInput').click()">↑ Import catalogue</button>
       <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
       <button class="hbtn" onclick="exportXLSX()">↓ Excel</button>
+      <button class="hbtn" onclick="exportDonnees()" title="Sauvegarder toutes mes données">💾</button>
+      <button class="hbtn" onclick="document.getElementById('importDonneesInput').click()" title="Restaurer mes données">♻️</button>
+      <input type="file" id="importDonneesInput" accept=".json" style="display:none" onchange="importDonnees(event)">
     </div>
   </div>
 </div>
@@ -939,7 +942,53 @@ function exportXLSX() {
   showToast('Export Excel téléchargé');
 }
 
-// ── Import catalogue Excel ────────────────────────────────
+// ── Export / Import données complètes ────────────────────
+function exportDonnees() {
+  const data = {
+    version: 1,
+    date: new Date().toISOString(),
+    stocks:       products.map(p => ({ref:p.ref, nom:p.nom, prix:p.prix, qty:p.qty, sold:p.sold||0})),
+    history:      history.slice(0, 300),
+    salesHistory: salesHistory.slice(0, 3000),
+    manualCA:     manualCA
+  };
+  const json = JSON.stringify(data, null, 2);
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+  a.download = 'sauvegarde_bougies_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('💾 Sauvegarde téléchargée');
+}
+
+function importDonnees(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.stocks) { showToast('⚠️ Fichier de sauvegarde invalide'); return; }
+      // Restaurer tous les produits
+      products = data.stocks.map(p => ({
+        ref: p.ref, nom: p.nom, prix: p.prix,
+        qty: p.qty||0, sold: p.sold||0
+      }));
+      sortProds(products);
+      history      = data.history      || [];
+      salesHistory = data.salesHistory || [];
+      manualCA     = data.manualCA     || {};
+      saveData();
+      renderList();
+      updateStats();
+      event.target.value = '';
+      showToast('✅ Données restaurées avec succès !');
+    } catch(err) {
+      showToast('⚠️ Erreur lecture sauvegarde');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
 function importExcel(event) {
   const file = event.target.files[0];
   if (!file) return;
